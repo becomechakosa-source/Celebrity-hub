@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Celebrity Hub</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #141c31;
+      --panel-light: #1c2740;
+      --text: #f4f6fb;
+      --muted: #aeb8cd;
+      --accent: #f5b942;
+      --border: #2b3854;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 Arial, sans-serif;
+    }
+    header {
+      padding: 18px 6%;
+      background: #080c18;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .brand { font-size: 1.35rem; font-weight: 800; }
+    .brand span { color: var(--accent); }
+    nav { display: flex; gap: 18px; flex-wrap: wrap; }
+    nav a { color: var(--text); text-decoration: none; }
+    nav a:hover { color: var(--accent); }
+    .hero {
+      padding: 72px 6%;
+      background: linear-gradient(120deg, #1a2744, #11172a);
+    }
+    .hero h1 { font-size: clamp(2.2rem, 5vw, 4rem); margin: 0 0 12px; }
+    .hero p { color: var(--muted); max-width: 650px; }
+    main { width: min(1100px, 88%); margin: 36px auto; }
+    section { margin: 42px 0; }
+    h2 { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+    .card, .admin-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .card h3 { margin: 8px 0; }
+    .card p, .muted { color: var(--muted); }
+    .tag { color: var(--accent); font-size: .85rem; font-weight: bold; }
+    audio, video { width: 100%; margin-top: 10px; }
+    video { border-radius: 8px; background: #000; }
+    .download, button {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 7px;
+      background: var(--accent);
+      color: #17120a;
+      font-weight: bold;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button:hover, .download:hover { filter: brightness(1.08); }
+    form { display: grid; gap: 12px; }
+    label { font-weight: bold; }
+    input, textarea, select {
+      width: 100%;
+      padding: 11px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--panel-light);
+      color: var(--text);
+    }
+    input[type="file"] { padding: 8px; }
+    textarea { min-height: 90px; resize: vertical; }
+    .notice {
+      padding: 12px;
+      background: #292719;
+      border: 1px solid #66551f;
+      border-radius: 8px;
+      color: #f5df9f;
+      font-size: .92rem;
+    }
+    footer {
+      padding: 28px 6%;
+      text-align: center;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    .empty { color: var(--muted); font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Celebrity<span>Hub</span></div>
+    <nav aria-label="Main navigation">
+      <a href="#news">News</a>
+      <a href="#events">Events</a>
+      <a href="#music">Music</a>
+      <a href="#videos">Videos</a>
+      <a href="#admin">Admin</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>All the latest from your favorite stars</h1>
+    <p>Discover celebrity news, upcoming events, music releases, videos, and more.</p>
+  </section>
+
+  <main>
+    <section id="news">
+      <h2>Latest News</h2>
+      <div class="grid" id="news-list"></div>
+    </section>
+
+    <section id="events">
+      <h2>Upcoming Events</h2>
+      <div class="grid" id="events-list"></div>
+    </section>
+
+    <section id="music">
+      <h2>Music</h2>
+      <p class="muted">Listen to a track with the player before choosing to download it.</p>
+      <div class="grid" id="music-list"></div>
+    </section>
+
+    <section id="videos">
+      <h2>Videos</h2>
+      <div class="grid" id="videos-list"></div>
+    </section>
+
+    <section id="admin">
+      <h2>Administrator: Add Content</h2>
+      <div class="admin-panel">
+        <p class="notice">
+          Demo only: this form does not provide secure administrator access or upload files to a server.
+          Do not use it for private or copyrighted material without permission.
+        </p>
+
+        <form id="content-form">
+          <div>
+            <label for="type">Content type</label>
+            <select id="type" required>
+              <option value="news">News</option>
+              <option value="events">Event</option>
+              <option value="music">Music</option>
+              <option value="videos">Video</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="title">Title</label>
+            <input id="title" required maxlength="100" placeholder="Content title">
+          </div>
+
+          <div>
+            <label for="description">Description or event details</label>
+            <textarea id="description" maxlength="1000" placeholder="Write a short description"></textarea>
+          </div>
+
+          <div>
+            <label for="media">Choose an audio or video file (optional)</label>
+            <input id="media" type="file" accept="audio/*,video/*">
+          </div>
+
+          <button type="submit">Add Content</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer>© <span id="year"></span> CelebrityHub</footer>
+
+  <script>
+    const storageKey = "celebrityHubContent";
+    const fileUrls = [];
+
+    function readItems() {
+      try {
+        return JSON.parse(localStorage.getItem(storageKey)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[character]);
+    }
+
+    function render() {
+      const items = readItems();
+      const sections = {
+        news: document.getElementById("news-list"),
+        events: document.getElementById("events-list"),
+        music: document.getElementById("music-list"),
+        videos: document.getElementById("videos-list")
+      };
+
+      Object.values(sections).forEach(section => section.innerHTML = "");
+
+      for (const item of items) {
+        const card = document.createElement("article");
+        card.className = "card";
+
+        let mediaHtml = "";
+        if (item.type === "music" && item.fileUrl) {
+          mediaHtml = `
+            <audio controls preload="metadata">
+              <source src="${item.fileUrl}" type="${escapeHtml(item.fileType || "audio/mpeg")}">
+              Your browser does not support audio playback.
+            </audio>
+            <a class="download" href="${item.fileUrl}" download="${escapeHtml(item.fileName || "music")}">
+              Download after listening
+            </a>`;
+        } else if (item.type === "videos" && item.fileUrl) {
+          mediaHtml = `
+            <video controls preload="metadata">
+              <source src="${item.fileUrl}" type="${escapeHtml(item.fileType || "video/mp4")}">
+              Your browser does not support video playback.
+            </video>`;
+        }
+
+        card.innerHTML = `
+          <div class="tag">${escapeHtml(item.type.toUpperCase())}</div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.description || "")}</p>
+          ${mediaHtml}
+        `;
+        sections[item.type].appendChild(card);
+      }
+
+      for (const section of Object.values(sections)) {
+        if (!section.children.length) {
+          section.innerHTML = '<p class="empty">No content added yet.</p>';
+        }
+      }
+    }
+
+    document.getElementById("content-form").addEventListener("submit", event => {
+      event.preventDefault();
+
+      const type = document.getElementById("type").value;
+      const title = document.getElementById("title").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const file = document.getElementById("media").files[0];
+
+      if (!title) return;
+
+      const item = { type, title, description };
+
+      if (file) {
+        item.fileUrl = URL.createObjectURL(file);
+        item.fileType = file.type;
+        item.fileName = file.name;
+        fileUrls.push(item.fileUrl);
+      }
+
+      const items = readItems();
+      items.unshift(item);
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(items));
+        render();
+        event.target.reset();
+      } catch {
+        alert("This browser could not save the content. Use smaller files or a backend file-storage service.");
+      }
+    });
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+    render();
+  </script>
+</body>
+</html>
