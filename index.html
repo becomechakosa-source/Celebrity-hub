@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Celebrity Hub</title>
+  <title>Celebrity Hub · shareable media</title>
   <style>
     :root {
       --bg: #0b1020;
@@ -13,6 +13,11 @@
       --muted: #aeb8cd;
       --accent: #f5b942;
       --border: #2b3854;
+      --share-bg: #1f2a44;
+      --share-hover: #2e3f62;
+      --facebook: #1877f2;
+      --whatsapp: #25d366;
+      --instagram: #e4405f;
     }
 
     * { box-sizing: border-box; }
@@ -48,7 +53,7 @@
     h2 { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 18px;
     }
     .card, .admin-panel {
@@ -56,12 +61,13 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 18px;
+      display: flex;
+      flex-direction: column;
     }
     .card h3 { margin: 8px 0; }
     .card p, .muted { color: var(--muted); }
     .tag { color: var(--accent); font-size: .85rem; font-weight: bold; }
-    audio, video { width: 100%; margin-top: 10px; }
-    video { border-radius: 8px; background: #000; }
+    audio, video { width: 100%; margin-top: 10px; border-radius: 8px; background: #000; }
     .download, button {
       display: inline-block;
       margin-top: 12px;
@@ -73,6 +79,7 @@
       font-weight: bold;
       text-decoration: none;
       cursor: pointer;
+      text-align: center;
     }
     button:hover, .download:hover { filter: brightness(1.08); }
     form { display: grid; gap: 12px; }
@@ -102,6 +109,59 @@
       border-top: 1px solid var(--border);
     }
     .empty { color: var(--muted); font-style: italic; }
+    
+    /* ----- share bar styles ----- */
+    .share-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+      align-items: center;
+    }
+    .share-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-right: 4px;
+      font-weight: bold;
+      letter-spacing: 0.3px;
+    }
+    .share-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 30px;
+      background: var(--share-bg);
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: background 0.15s, border-color 0.15s;
+      cursor: pointer;
+    }
+    .share-btn i { font-style: normal; font-size: 1rem; }
+    .share-btn:hover { background: var(--share-hover); border-color: var(--accent); }
+    .share-btn.facebook:hover { background: var(--facebook); border-color: var(--facebook); color: white; }
+    .share-btn.whatsapp:hover { background: var(--whatsapp); border-color: var(--whatsapp); color: #0b1a12; }
+    .share-btn.instagram:hover { background: var(--instagram); border-color: var(--instagram); color: white; }
+    
+    .share-feedback {
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-left: 6px;
+      opacity: 0.9;
+      transition: opacity 0.2s;
+    }
+    
+    .file-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -134,7 +194,7 @@
 
     <section id="music">
       <h2>Music</h2>
-      <p class="muted">Listen to a track with the player before choosing to download it.</p>
+      <p class="muted">Listen to a track with the player before choosing to download it. Use the share buttons below each track.</p>
       <div class="grid" id="music-list"></div>
     </section>
 
@@ -175,6 +235,7 @@
           <div>
             <label for="media">Choose an audio or video file (optional)</label>
             <input id="media" type="file" accept="audio/*,video/*">
+            <div class="file-hint">After adding, share buttons appear on the media card.</div>
           </div>
 
           <button type="submit">Add Content</button>
@@ -189,14 +250,7 @@
     const storageKey = "celebrityHubContent";
     const fileUrls = [];
 
-    function readItems() {
-      try {
-        return JSON.parse(localStorage.getItem(storageKey)) || [];
-      } catch {
-        return [];
-      }
-    }
-
+    // Helper to escape HTML (same as before)
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, character => ({
         "&": "&amp;",
@@ -205,6 +259,99 @@
         '"': "&quot;",
         "'": "&#039;"
       })[character]);
+    }
+
+    // Generate a shareable text based on item
+    function getShareText(item) {
+      const base = `Check out "${item.title}" on CelebrityHub!`;
+      if (item.description) {
+        return `${base} – ${item.description.substring(0, 100)}${item.description.length > 100 ? '…' : ''}`;
+      }
+      return base;
+    }
+
+    // Build share URL for a given platform
+    function buildShareUrl(platform, item, currentPageUrl) {
+      const text = encodeURIComponent(getShareText(item));
+      // Use a placeholder page URL (since blob URLs aren't public, we share the current page + reference)
+      // We'll use the current page URL as the base, and add a hash to indicate the item? But that's not ideal.
+      // For demo, share the page URL and the text. We also include a note that media is local.
+      // Better: share the page URL so recipient can visit the site, and text describes the item.
+      // Since blob URLs are local only, we can't share direct media link. So we share the site link.
+      const url = encodeURIComponent(currentPageUrl || window.location.href);
+      const fallbackUrl = window.location.href;
+      
+      switch(platform) {
+        case 'facebook':
+          return `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`;
+        case 'whatsapp':
+          return `https://wa.me/?text=${text}%20${url}`;
+        case 'instagram':
+          // Instagram doesn't have a direct web share endpoint, so we copy a message and open instagram.
+          // We'll handle instagram via a custom function.
+          return null;
+        default:
+          return '#';
+      }
+    }
+
+    // Generate share bar HTML for an item
+    function createShareBarHtml(item, currentPageUrl) {
+      const text = getShareText(item);
+      const pageUrl = currentPageUrl || window.location.href;
+      
+      const fbUrl = buildShareUrl('facebook', item, pageUrl);
+      const waUrl = buildShareUrl('whatsapp', item, pageUrl);
+      
+      // Instagram: we'll use a data attribute and handle click to copy text and open instagram
+      // We'll generate a placeholder for instagram link, but the actual click handled via event delegation
+      return `
+        <div class="share-bar" data-share-item="${escapeHtml(item.title)}" data-share-text="${escapeHtml(text)}">
+          <span class="share-label">Share:</span>
+          <a class="share-btn facebook" href="${fbUrl}" target="_blank" rel="noopener noreferrer" title="Share on Facebook">
+            <i>📘</i> Facebook
+          </a>
+          <a class="share-btn whatsapp" href="${waUrl}" target="_blank" rel="noopener noreferrer" title="Share on WhatsApp">
+            <i>💬</i> WhatsApp
+          </a>
+          <a class="share-btn instagram" href="#" data-instagram-share="true" title="Copy text & open Instagram">
+            <i>📸</i> Instagram
+          </a>
+          <span class="share-feedback" style="display:none;">copied!</span>
+        </div>
+      `;
+    }
+
+    // Attach share event listeners (including Instagram fallback)
+    function attachShareHandlers() {
+      document.querySelectorAll('[data-instagram-share]').forEach(btn => {
+        // Remove previous listener if any
+        btn.removeEventListener('click', instagramShareHandler);
+        btn.addEventListener('click', instagramShareHandler);
+      });
+    }
+
+    function instagramShareHandler(e) {
+      e.preventDefault();
+      const shareBar = e.currentTarget.closest('.share-bar');
+      const text = shareBar?.getAttribute('data-share-text') || 'Check out this content on CelebrityHub!';
+      const pageUrl = window.location.href;
+      const fullMessage = `${text} ${pageUrl}`;
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(fullMessage).then(() => {
+        // Show feedback
+        const feedback = shareBar.querySelector('.share-feedback');
+        if (feedback) {
+          feedback.style.display = 'inline';
+          setTimeout(() => { feedback.style.display = 'none'; }, 2500);
+        }
+        // Open Instagram in new tab
+        window.open('https://www.instagram.com/', '_blank');
+      }).catch(() => {
+        // Fallback: prompt user to copy manually
+        prompt('Copy this message and share on Instagram:', fullMessage);
+      });
     }
 
     function render() {
@@ -217,6 +364,8 @@
       };
 
       Object.values(sections).forEach(section => section.innerHTML = "");
+
+      const currentPageUrl = window.location.href;
 
       for (const item of items) {
         const card = document.createElement("article");
@@ -240,11 +389,17 @@
             </video>`;
         }
 
+        // Only show share bar for music and videos (as requested for song or anything)
+        // But the user said "if I upload a song or anything" – so show for music and videos.
+        const showShare = (item.type === "music" || item.type === "videos") && item.fileUrl;
+        const shareHtml = showShare ? createShareBarHtml(item, currentPageUrl) : '';
+
         card.innerHTML = `
           <div class="tag">${escapeHtml(item.type.toUpperCase())}</div>
           <h3>${escapeHtml(item.title)}</h3>
           <p>${escapeHtml(item.description || "")}</p>
           ${mediaHtml}
+          ${shareHtml}
         `;
         sections[item.type].appendChild(card);
       }
@@ -253,6 +408,17 @@
         if (!section.children.length) {
           section.innerHTML = '<p class="empty">No content added yet.</p>';
         }
+      }
+
+      // Re-attach handlers after rendering
+      attachShareHandlers();
+    }
+
+    function readItems() {
+      try {
+        return JSON.parse(localStorage.getItem(storageKey)) || [];
+      } catch {
+        return [];
       }
     }
 
@@ -287,6 +453,7 @@
       }
     });
 
+    // Update year and initial render
     document.getElementById("year").textContent = new Date().getFullYear();
     render();
   </script>
