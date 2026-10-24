@@ -109,7 +109,7 @@
       border-top: 1px solid var(--border);
     }
     .empty { color: var(--muted); font-style: italic; }
-    
+
     /* ----- share bar styles ----- */
     .share-bar {
       display: flex;
@@ -148,7 +148,7 @@
     .share-btn.facebook:hover { background: var(--facebook); border-color: var(--facebook); color: white; }
     .share-btn.whatsapp:hover { background: var(--whatsapp); border-color: var(--whatsapp); color: #0b1a12; }
     .share-btn.instagram:hover { background: var(--instagram); border-color: var(--instagram); color: white; }
-    
+
     .share-feedback {
       font-size: 0.8rem;
       color: var(--accent);
@@ -156,7 +156,7 @@
       opacity: 0.9;
       transition: opacity 0.2s;
     }
-    
+
     .file-hint {
       font-size: 0.8rem;
       color: var(--muted);
@@ -248,9 +248,14 @@
 
   <script>
     const storageKey = "celebrityHubContent";
-    const fileUrls = [];
+    // We'll store object URLs in memory, but we also need to re-create them for persistence.
+    // For a demo, we store file data (as base64 or blob) in localStorage? That's heavy.
+    // To keep the demo working, we'll store the file as a data URL for persistence, but
+    // that may bloat localStorage. We'll use object URLs for the session and also store
+    // a data URL for persistence so that after page reload the media still plays.
+    // We'll limit file size implicitly via localStorage quota; if too big, alert.
 
-    // Helper to escape HTML (same as before)
+    // Helper to escape HTML
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, character => ({
         "&": "&amp;",
@@ -261,7 +266,7 @@
       })[character]);
     }
 
-    // Generate a shareable text based on item
+    // Generate shareable text
     function getShareText(item) {
       const base = `Check out "${item.title}" on CelebrityHub!`;
       if (item.description) {
@@ -270,41 +275,26 @@
       return base;
     }
 
-    // Build share URL for a given platform
+    // Build share URL
     function buildShareUrl(platform, item, currentPageUrl) {
       const text = encodeURIComponent(getShareText(item));
-      // Use a placeholder page URL (since blob URLs aren't public, we share the current page + reference)
-      // We'll use the current page URL as the base, and add a hash to indicate the item? But that's not ideal.
-      // For demo, share the page URL and the text. We also include a note that media is local.
-      // Better: share the page URL so recipient can visit the site, and text describes the item.
-      // Since blob URLs are local only, we can't share direct media link. So we share the site link.
       const url = encodeURIComponent(currentPageUrl || window.location.href);
-      const fallbackUrl = window.location.href;
-      
       switch(platform) {
         case 'facebook':
           return `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`;
         case 'whatsapp':
           return `https://wa.me/?text=${text}%20${url}`;
-        case 'instagram':
-          // Instagram doesn't have a direct web share endpoint, so we copy a message and open instagram.
-          // We'll handle instagram via a custom function.
-          return null;
         default:
           return '#';
       }
     }
 
-    // Generate share bar HTML for an item
+    // Share bar HTML
     function createShareBarHtml(item, currentPageUrl) {
       const text = getShareText(item);
       const pageUrl = currentPageUrl || window.location.href;
-      
       const fbUrl = buildShareUrl('facebook', item, pageUrl);
       const waUrl = buildShareUrl('whatsapp', item, pageUrl);
-      
-      // Instagram: we'll use a data attribute and handle click to copy text and open instagram
-      // We'll generate a placeholder for instagram link, but the actual click handled via event delegation
       return `
         <div class="share-bar" data-share-item="${escapeHtml(item.title)}" data-share-text="${escapeHtml(text)}">
           <span class="share-label">Share:</span>
@@ -322,38 +312,43 @@
       `;
     }
 
-    // Attach share event listeners (including Instagram fallback)
-    function attachShareHandlers() {
-      document.querySelectorAll('[data-instagram-share]').forEach(btn => {
-        // Remove previous listener if any
-        btn.removeEventListener('click', instagramShareHandler);
-        btn.addEventListener('click', instagramShareHandler);
-      });
-    }
-
+    // Instagram handler
     function instagramShareHandler(e) {
       e.preventDefault();
       const shareBar = e.currentTarget.closest('.share-bar');
       const text = shareBar?.getAttribute('data-share-text') || 'Check out this content on CelebrityHub!';
       const pageUrl = window.location.href;
       const fullMessage = `${text} ${pageUrl}`;
-      
-      // Copy to clipboard
       navigator.clipboard.writeText(fullMessage).then(() => {
-        // Show feedback
         const feedback = shareBar.querySelector('.share-feedback');
         if (feedback) {
           feedback.style.display = 'inline';
           setTimeout(() => { feedback.style.display = 'none'; }, 2500);
         }
-        // Open Instagram in new tab
         window.open('https://www.instagram.com/', '_blank');
       }).catch(() => {
-        // Fallback: prompt user to copy manually
         prompt('Copy this message and share on Instagram:', fullMessage);
       });
     }
 
+    // Attach share handlers
+    function attachShareHandlers() {
+      document.querySelectorAll('[data-instagram-share]').forEach(btn => {
+        btn.removeEventListener('click', instagramShareHandler);
+        btn.addEventListener('click', instagramShareHandler);
+      });
+    }
+
+    // Read items from localStorage
+    function readItems() {
+      try {
+        return JSON.parse(localStorage.getItem(storageKey)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    // Render all items
     function render() {
       const items = readItems();
       const sections = {
@@ -372,26 +367,28 @@
         card.className = "card";
 
         let mediaHtml = "";
-        if (item.type === "music" && item.fileUrl) {
+        // IMPORTANT: We now use item.fileDataUrl for persistence, and also keep fileUrl for session.
+        // For playback we prefer fileDataUrl if available (works after reload), else fileUrl (session blob).
+        const playbackSrc = item.fileDataUrl || item.fileUrl || '';
+        
+        if (item.type === "music" && playbackSrc) {
           mediaHtml = `
             <audio controls preload="metadata">
-              <source src="${item.fileUrl}" type="${escapeHtml(item.fileType || "audio/mpeg")}">
+              <source src="${playbackSrc}" type="${escapeHtml(item.fileType || "audio/mpeg")}">
               Your browser does not support audio playback.
             </audio>
-            <a class="download" href="${item.fileUrl}" download="${escapeHtml(item.fileName || "music")}">
+            <a class="download" href="${playbackSrc}" download="${escapeHtml(item.fileName || "music")}">
               Download after listening
             </a>`;
-        } else if (item.type === "videos" && item.fileUrl) {
+        } else if (item.type === "videos" && playbackSrc) {
           mediaHtml = `
             <video controls preload="metadata">
-              <source src="${item.fileUrl}" type="${escapeHtml(item.fileType || "video/mp4")}">
+              <source src="${playbackSrc}" type="${escapeHtml(item.fileType || "video/mp4")}">
               Your browser does not support video playback.
             </video>`;
         }
 
-        // Only show share bar for music and videos (as requested for song or anything)
-        // But the user said "if I upload a song or anything" – so show for music and videos.
-        const showShare = (item.type === "music" || item.type === "videos") && item.fileUrl;
+        const showShare = (item.type === "music" || item.type === "videos") && playbackSrc;
         const shareHtml = showShare ? createShareBarHtml(item, currentPageUrl) : '';
 
         card.innerHTML = `
@@ -410,19 +407,21 @@
         }
       }
 
-      // Re-attach handlers after rendering
       attachShareHandlers();
     }
 
-    function readItems() {
-      try {
-        return JSON.parse(localStorage.getItem(storageKey)) || [];
-      } catch {
-        return [];
-      }
+    // Convert file to data URL for persistence
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     }
 
-    document.getElementById("content-form").addEventListener("submit", event => {
+    // Form submit handler
+    document.getElementById("content-form").addEventListener("submit", async (event) => {
       event.preventDefault();
 
       const type = document.getElementById("type").value;
@@ -435,25 +434,52 @@
       const item = { type, title, description };
 
       if (file) {
-        item.fileUrl = URL.createObjectURL(file);
+        // For immediate playback, create object URL
+        const blobUrl = URL.createObjectURL(file);
+        item.fileUrl = blobUrl;
         item.fileType = file.type;
         item.fileName = file.name;
-        fileUrls.push(item.fileUrl);
+
+        // Also create a data URL for persistence across reloads.
+        // Note: large files may exceed localStorage quota; we'll handle the error.
+        try {
+          const dataUrl = await fileToDataUrl(file);
+          item.fileDataUrl = dataUrl; // store base64 data
+        } catch (err) {
+          console.warn('Could not convert file to data URL for persistence:', err);
+          // Continue without dataUrl; media won't persist after reload but will work in session.
+        }
       }
 
       const items = readItems();
       items.unshift(item);
 
       try {
+        // Try to save; if quota exceeded, remove large data URLs from older items?
+        // For simplicity, we just try and catch.
         localStorage.setItem(storageKey, JSON.stringify(items));
         render();
         event.target.reset();
-      } catch {
-        alert("This browser could not save the content. Use smaller files or a backend file-storage service.");
+      } catch (error) {
+        // If storage fails, maybe due to large file, we alert and remove the fileDataUrl from the new item and try again.
+        if (item.fileDataUrl) {
+          delete item.fileDataUrl;
+          items[0] = item; // update the item
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(items));
+            render();
+            event.target.reset();
+            alert('File was too large to persist after page reload, but it will play during this session. For permanent storage, use smaller files or a backend.');
+          } catch (secondError) {
+            alert('Could not save content. File may be too large for browser storage.');
+          }
+        } else {
+          alert('Could not save content. Browser storage may be full.');
+        }
       }
     });
 
-    // Update year and initial render
+    // Initialize
     document.getElementById("year").textContent = new Date().getFullYear();
     render();
   </script>
